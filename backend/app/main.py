@@ -28,6 +28,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    if request.url.path.startswith("/api"):
+        print(f"[REQ] {request.method} {request.url.path}")
+    return await call_next(request)
+
 # ---------- API ----------
 class SummarizeBody(BaseModel):
     url: Optional[str] = None

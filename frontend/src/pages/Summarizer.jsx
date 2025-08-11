@@ -1,40 +1,30 @@
 import React, { useState } from 'react'
-import { postJSON, postForm } from '../utils'
+import { postJSON } from '../utils'
 
-export default function App() {
+export default function Summarizer() {
   const [url, setUrl] = useState('')
   const [text, setText] = useState('')
   const [detail, setDetail] = useState(40)
   const [temperature, setTemperature] = useState(0.2)
-  const [file, setFile] = useState(null)
   const [loading, setLoading] = useState(false)
-  const [result, setResult] = useState(null)
   const [error, setError] = useState('')
+  const [summary, setSummary] = useState('')
 
-  async function runSummarize() {
-    setError(''); setLoading(true); setResult(null)
+  async function onSummarize(e) {
+    e?.preventDefault?.()
+    setLoading(true); setError(''); setSummary('')
     try {
-      const data = await postJSON('summarize', { url: url || undefined, text: text || undefined, detail, temperature })
-      setResult(data)
-    } catch (e) {
-      setError(e.message || 'Failed')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  async function uploadFile() {
-    if (!file) return
-    setError(''); setLoading(true); setResult(null)
-    try {
-      const fd = new FormData()
-      fd.append('file', file)
-      fd.append('detail', String(detail))
-      fd.append('temperature', String(temperature))
-      const data = await postForm('upload', fd)
-      setResult(data)
-    } catch (e) {
-      setError(e.message || 'Failed')
+      const payload = {
+        url: url?.trim() || undefined,   // ONE of url or text
+        text: text?.trim() || undefined,
+        detail,
+        temperature
+      }
+      const data = await postJSON('/api/summarize', payload)
+      if (data.error) throw new Error(data.error)
+      setSummary(data.summary || '')
+    } catch (err) {
+      setError(err.message || 'Failed')
     } finally {
       setLoading(false)
     }
