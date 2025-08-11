@@ -1,0 +1,35 @@
+services:
+  - type: web
+    name: sea-lion-app
+    env: python
+    plan: free
+    rootDir: .
+    buildCommand: |
+      set -e
+      echo "==> Building frontend"
+      cd frontend
+      npm ci || npm install
+      npm run build
+      cd ..
+      echo "==> Installing backend deps"
+      pip install --upgrade pip setuptools wheel
+      pip install -r backend/requirements.txt
+      echo "==> Copying frontend build into backend/frontend_dist"
+      rm -rf backend/frontend_dist && mkdir -p backend/frontend_dist
+      cp -r frontend/dist/* backend/frontend_dist/
+    startCommand: uvicorn app.main:app --app-dir backend --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: SEA_LION_API_KEY
+        sync: false
+      - key: HUGGINGFACE_API_TOKEN
+        sync: false
+      - key: SEA_LION_BASE_URL
+        value: https://api.sea-lion.ai/v1/chat/completions
+      - key: DEFAULT_SEALION_MODEL
+        value: aisingapore/Gemma-SEA-LION-v3-9B-IT
+      - key: HF_EMBED_MODEL
+        value: sentence-transformers/all-MiniLM-L6-v2
+      - key: HF_EMBED_API
+        value: https://router.huggingface.co/hf-inference/models/sentence-transformers/all-MiniLM-L6-v2/pipeline/feature-extraction
+      - key: CHROMA_DB_DIR      # leave empty -> Ephemeral
+        value: ""

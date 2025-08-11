@@ -1,0 +1,27 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+/* Foundations */
+  --bg:        #0b0f14;   /* page background: soft black/graphite */
+  --surface:   #0f141a;   /* panels / inputs */
+  --card:      #101820;   /* cards */
+  --border:    #1b2a34;   /* subtle borders */
+
+  /* Accent system (greens & teals) */
+  --primary:   #00e694;   /* neon-green primary */
+  --primary-2: #27f0b0;   /* brighter hover/lines */
+  --info:      #23b4ff;   /* optional charts/links */
+  --warn:      #ffcf5a;   /* optional warnings */
+
+  /* Text */
+  --text:      #e7f5ef;   /* base text */
+  --muted:     #96a3ad;   /* secondary text */
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, sans-serif;
+}
