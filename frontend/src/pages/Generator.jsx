@@ -25,7 +25,7 @@ export default function Generator() {
   async function run() {
     setError(''); setLoading(true); setAnswer('')
     try {
-      const data = await postJSON('generate', {
+      const data = await postJSON('/api/generate', {
         message,
         system_prompt: systemPrompt || null,
         temperature
