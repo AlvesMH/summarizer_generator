@@ -6,7 +6,10 @@ The backend is built with **FastAPI**, the frontend with **React + Vite**, and t
 
 ---
 
+![Summarizer](img/summarizer.jpg)
 
+
+![RAG Generator](img/generator.jpg)
 
 
 ---
