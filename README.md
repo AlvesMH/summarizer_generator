@@ -16,24 +16,24 @@ The backend is built with **FastAPI**, the frontend with **React + Vite**, and t
 ### Summarizer
 Paste a URL (article, blog post, academic paper link) or upload a PDF/TXT.
 
-Choose:
+- Choose:
 
-Detail → higher number = longer, more detailed summary
+    - Detail → higher number = longer, more detailed summary
 
-Temperature → lower for factual, higher for creative summaries
+    - Temperature → lower for factual, higher for creative summaries
 
-Click Summarize.
+- Click Summarize.
 
-View your summary; source chunks are stored for later questions.
+- View your summary; source chunks are stored for later questions.
 
 ### Generator (RAG mode)
 Switch to the Generator tab.
 
-Ask a question related to something you just summarized/uploaded.
+- Ask a question related to something you just summarized/uploaded.
 
-The app searches your stored chunks for relevant context.
+- The app searches your stored chunks for relevant context.
 
-Answer includes citations like [Doc 1] that map to chunks in memory.
+- Answer includes citations like [Doc 1] that map to chunks in memory.
 
 ---
 
