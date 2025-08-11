@@ -165,8 +165,8 @@ class GenerateBody(BaseModel):
     temperature: float = 0.6
     top_k: int = 6
 
-@app.post("/api/generate")
-async def generate(body: GenerateBody):
+@app.api_route("/api/generate", methods=["POST", "OPTIONS"])
+async def generate(body: GenerateBody = Body(...)):
     if not body.message.strip():
         return {"error": "Provide a user message."}
 
@@ -176,7 +176,7 @@ async def generate(body: GenerateBody):
     ids = res.get("ids", [[]])[0]
 
     context = "\n\n".join(
-        f"[Doc {i} | { (metas[i] or {}).get('source','unknown') } | id={ids[i]}]\n{docs[i]}"
+        f"[Doc {i} | {(metas[i] or {}).get('source','unknown')} | id={ids[i]}]\n{docs[i]}"
         for i in range(len(docs))
     ) or "(no matching context found)"
 
@@ -190,6 +190,12 @@ async def generate(body: GenerateBody):
         temperature=body.temperature
     )
     return {"answer": answer, "matches": [{"id": ids[i], "meta": metas[i]} for i in range(len(docs))]}
+
+from fastapi.routing import APIRoute
+print("=== ROUTE MAP ===")
+for r in app.routes:
+    if isinstance(r, APIRoute):
+        print(f"[ROUTE] {r.path}  methods={sorted(r.methods)}")
 
 @app.get("/healthz")
 async def healthz():
