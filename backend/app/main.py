@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from fastapi import FastAPI, UploadFile, File, Form
+from fastapi import FastAPI, UploadFile, File, Form , Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -113,44 +113,6 @@ async def upload(file: UploadFile = File(...), detail: int = Form(40), temperatu
         "stats": {"chunks_total": len(chunks), "chunks_used": len(idxs)}
     }
 
-# Subclass to inject cache headers
-class SmartStaticFiles(StaticFiles):
-    async def get_response(self, path, scope):
-        resp = await super().get_response(path, scope)
-        if resp.status_code == 200:
-            ctype = resp.headers.get("content-type", "")
-            if "text/html" in ctype:
-                # Keep HTML fresh so deploys are visible right away
-                resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
-                resp.headers["Pragma"] = "no-cache"
-                resp.headers["Expires"] = "0"
-            else:
-                # Long-cache hashed assets
-                resp.headers["Cache-Control"] = "public, max-age=2592000, immutable"
-        return resp
-    
-# We will copy frontend/dist into this folder during the Render build step
-FRONTEND_DIST = Path(__file__).parent / "frontend_dist"
-
-# Log what we computed so we can see it in Render logs
-print(f"[BOOT] FRONTEND_DIST => {FRONTEND_DIST} exists={FRONTEND_DIST.exists()}")
-
-if FRONTEND_DIST.exists():
-    app.mount(
-        "/",
-        SmartStaticFiles(directory=FRONTEND_DIST, html=True),
-        name="static"
-    )
-
-    # SPA fallback: if a non-API route 404s, return index.html
-    @app.exception_handler(404)
-    async def spa_fallback(request, exc):
-        if not request.url.path.startswith("/api"):
-            index = FRONTEND_DIST / "index.html"
-            if index.exists():
-                return FileResponse(index)
-        raise exc
-    
 # ---------- RAG Generator ----------
 class GenerateBody(BaseModel):
     message: str
@@ -158,15 +120,8 @@ class GenerateBody(BaseModel):
     temperature: float = 0.6
     top_k: int = 6
 
-# --- new RAG endpoint ---
-class GenerateBody(BaseModel):
-    message: str
-    system_prompt: Optional[str] = None
-    temperature: float = 0.6
-    top_k: int = 6
-
 @app.api_route("/api/generate", methods=["POST", "OPTIONS"])
-async def generate(body: GenerateBody = Body(...)):
+async def generate(body: GenerateBody:
     if not body.message.strip():
         return {"error": "Provide a user message."}
 
@@ -200,3 +155,31 @@ for r in app.routes:
 @app.get("/healthz")
 async def healthz():
     return {"ok": True}
+
+# ---------- STATIC SPA (MUST BE LAST) ----------
+FRONTEND_DIST = Path(__file__).parent / "frontend_dist"
+print(f"[BOOT] FRONTEND_DIST => {FRONTEND_DIST} exists={FRONTEND_DIST.exists()}")
+
+class SmartStaticFiles(StaticFiles):
+    async def get_response(self, path, scope):
+        resp = await super().get_response(path, scope)
+        if resp.status_code == 200:
+            ctype = resp.headers.get("content-type", "")
+            if "text/html" in ctype:
+                resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+                resp.headers["Pragma"] = "no-cache"
+                resp.headers["Expires"] = "0"
+            else:
+                resp.headers["Cache-Control"] = "public, max-age=2592000, immutable"
+        return resp
+
+if FRONTEND_DIST.exists():
+    app.mount("/", SmartStaticFiles(directory=FRONTEND_DIST, html=True), name="static")
+
+    @app.exception_handler(404)
+    async def spa_fallback(request, exc):
+        if not request.url.path.startswith("/api"):
+            index = FRONTEND_DIST / "index.html"
+            if index.exists():
+                return FileResponse(index)
+        raise exc

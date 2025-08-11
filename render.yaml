@@ -5,7 +5,6 @@ services:
     plan: free
     autoDeploy: true
     healthCheckPath: /healthz
-
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.9
@@ -17,7 +16,11 @@ services:
     buildCommand: |
       set -e
       cd frontend
-      if [ -f package-lock.json ]; then npm ci; else npm install; fi
+      if [ -f package-lock.json ]; then
+        npm ci
+      else
+        npm install
+      fi
       npm run build
       cd ..
       rm -rf backend/app/frontend_dist && mkdir -p backend/app/frontend_dist
@@ -26,4 +29,5 @@ services:
 
     startCommand: |
       cd backend && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+
 
