@@ -6,6 +6,7 @@ from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+from fastapi.middleware.gzip import GZipMiddleware
 from pydantic import BaseModel
 from typing import Optional
 
@@ -17,6 +18,7 @@ from .mmr import mmr_select
 from .sealion import summarize_with_sealion, generate_with_sealion
 
 app = FastAPI(title="Sea Lion Academic Summarizer API", version="1.0.0")
+app.add_middleware(GZipMiddleware, minimum_size=1024)
 
 app.add_middleware(
     CORSMiddleware,
@@ -105,14 +107,34 @@ async def upload(file: UploadFile = File(...), detail: int = Form(40), temperatu
         "stats": {"chunks_total": len(chunks), "chunks_used": len(idxs)}
     }
 
+# Subclass to inject cache headers
+class SmartStaticFiles(StaticFiles):
+    async def get_response(self, path, scope):
+        resp = await super().get_response(path, scope)
+        if resp.status_code == 200:
+            ctype = resp.headers.get("content-type", "")
+            if "text/html" in ctype:
+                # Keep HTML fresh so deploys are visible right away
+                resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+                resp.headers["Pragma"] = "no-cache"
+                resp.headers["Expires"] = "0"
+            else:
+                # Long-cache hashed assets
+                resp.headers["Cache-Control"] = "public, max-age=2592000, immutable"
+        return resp
+    
 # We will copy frontend/dist into this folder during the Render build step
-FRONTEND_DIST = Path(__file__).resolve().parent.parent / "frontend_dist"
+FRONTEND_DIST = Path(__file__).parent / "frontend_dist"
 
 # Log what we computed so we can see it in Render logs
 print(f"[BOOT] FRONTEND_DIST => {FRONTEND_DIST} exists={FRONTEND_DIST.exists()}")
 
 if FRONTEND_DIST.exists():
-    app.mount("/", StaticFiles(directory=str(FRONTEND_DIST), html=True), name="static")
+    app.mount(
+        "/",
+        SmartStaticFiles(directory=FRONTEND_DIST, html=True),
+        name="static"
+    )
 
     # SPA fallback: if a non-API route 404s, return index.html
     @app.exception_handler(404)

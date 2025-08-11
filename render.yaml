@@ -11,15 +11,8 @@ services:
         value: 3.11.9
       - key: NODE_VERSION
         value: 20
-      # Optional, your app can read this if needed
       - key: FRONTEND_DIST
         value: ./frontend_dist
-
-      # Add your secrets in the dashboard or here:
-      # - key: SEA_LION_API_KEY
-      #   sync: false
-      # - key: HUGGINGFACE_API_TOKEN
-      #   sync: false
 
     buildCommand: |
       set -e
@@ -33,3 +26,4 @@ services:
 
     startCommand: |
       cd backend && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+
