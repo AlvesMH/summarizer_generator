@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { postJSON, uploadFile } from '../utils'
+import { getJSON, postJSON, uploadFile } from '../utils'
 
 export default function Summarizer() {
   const [url, setUrl] = useState('')
@@ -9,7 +9,13 @@ export default function Summarizer() {
   const [temperature, setTemperature] = useState(0.2)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [result, setResult] = useState(null) // holds full API response
+  const [result, setResult] = useState(null) // full API response
+
+  // Admin state
+  const [adminLoading, setAdminLoading] = useState(false)
+  const [collections, setCollections] = useState(null)
+  const [purgeSource, setPurgeSource] = useState('')
+  const [adminMsg, setAdminMsg] = useState('')
 
   async function onSummarize(e) {
     e?.preventDefault?.()
@@ -48,6 +54,36 @@ export default function Summarizer() {
       setFile(null)
     }
   }
+
+  // ---- Admin handlers (were accidentally nested; now top-level) ----
+  async function onListCollections() {
+    setAdminLoading(true); setAdminMsg('')
+    try {
+      const data = await getJSON('/api/debug/collections')
+      setCollections(data.collections || [])
+    } catch (e) {
+      setAdminMsg(`List failed: ${e.message || e}`)
+    } finally {
+      setAdminLoading(false)
+    }
+  }
+
+  async function onDeleteBySource() {
+    const src = purgeSource.trim()
+    if (!src) { setAdminMsg('Enter a source (exact filename or page title).'); return; }
+    setAdminLoading(true); setAdminMsg('')
+    try {
+      const data = await postJSON('/api/documents/delete', { collection: 'knowledge', source: src })
+      setAdminMsg(`Deleted ${data.deleted ?? 0} docs from ${data.collection} for source="${src}"`)
+      // Refresh list if currently shown
+      if (collections) await onListCollections()
+    } catch (e) {
+      setAdminMsg(`Delete failed: ${e.message || e}`)
+    } finally {
+      setAdminLoading(false)
+    }
+  }
+  // -----------------------------------------------------------------
 
   function onReset() {
     setUrl(''); setText(''); setFile(null); setResult(null); setError('')
@@ -149,6 +185,54 @@ export default function Summarizer() {
         </div>
 
         {error && <p className="text-red-400 mt-4">{error}</p>}
+
+        {/* Admin panel */}
+        <section className="mt-10 bg-[var(--card)] rounded-2xl p-6 shadow-xl border border-[var(--border)]">
+          <h3 className="text-lg font-semibold">Admin</h3>
+          <p className="text-[var(--muted)] text-sm mt-1">
+            List collections or delete documents by <code>source</code> (exact match of filename or page title).
+          </p>
+
+          <div className="mt-4 flex flex-col md:flex-row gap-4">
+            <button
+              type="button"
+              onClick={onListCollections}
+              disabled={adminLoading}
+              className="px-3 py-2 rounded-lg bg-[var(--surface)] border border-[var(--border)] hover:brightness-110 disabled:opacity-50"
+            >
+              {adminLoading ? 'Working…' : 'List collections'}
+            </button>
+
+            <div className="flex-1 flex gap-2">
+              <input
+                value={purgeSource}
+                onChange={e=>setPurgeSource(e.target.value)}
+                placeholder="Exact source to purge (e.g., my.pdf or The Page Title)"
+                className="w-full rounded-lg bg-[var(--surface)] border border-[var(--border)] px-3 py-2"
+              />
+              <button
+                type="button"
+                onClick={onDeleteBySource}
+                disabled={adminLoading}
+                className="px-3 py-2 rounded-lg bg-red-600 text-white hover:brightness-110 disabled:opacity-50"
+              >
+                Purge by source
+              </button>
+            </div>
+          </div>
+
+          {adminMsg && <p className="mt-3 text-sm text-slate-300">{adminMsg}</p>}
+          {Array.isArray(collections) && (
+            <div className="mt-4 text-sm">
+              <div className="font-semibold mb-1">Collections</div>
+              <ul className="list-disc ml-5">
+                {collections.map((c,i)=>(
+                  <li key={i}><span className="font-mono">{c.name}</span> — {c.count ?? 'n/a'} docs</li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </section>
 
         {result && (
           <div className="mt-8 bg-[var(--card)] rounded-2xl p-6 shadow-xl border border-[var(--border)]">

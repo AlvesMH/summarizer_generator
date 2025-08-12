@@ -34,3 +34,34 @@ def query(collection: str, queries: Sequence[str], n_results: int = 5, embedding
                          include=["documents", "metadatas", "distances", "embeddings", "ids"])
     return col.query(query_texts=list(queries), n_results=n_results,
                      include=["documents", "metadatas", "distances", "embeddings", "ids"])
+
+# --- Admin helpers ---
+
+def list_collections_summary():
+    """Return [{'name': str, 'count': int}, ...] for all collections."""
+    cols = []
+    for c in client.list_collections():
+        try:
+            cnt = c.count()
+        except Exception:
+            cnt = None
+        cols.append({"name": c.name, "count": cnt})
+    return cols
+
+def delete_by_source(collection: str, source: str):
+    """Delete all docs where metadata.source==source or metadata.doc_title==source."""
+    col = get_collection(collection)
+    before = col.count()
+    # Run two filters to avoid depending on $or semantics
+    col.delete(where={"source": source})
+    col.delete(where={"doc_title": source})
+    after = col.count()
+    return {"deleted": max(0, before - after), "count_after": after}
+
+def delete_all(collection: str):
+    col = get_collection(collection)
+    before = col.count()
+    col.delete(where={})
+    after = col.count()
+    return {"deleted": max(0, before - after), "count_after": after}
+

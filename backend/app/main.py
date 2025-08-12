@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from fastapi import FastAPI, UploadFile, File, Form, Request
+from fastapi import FastAPI, UploadFile, File, Form, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -14,7 +14,7 @@ from collections import OrderedDict
 from .settings import settings  # (unused but fine)
 from .ingest import fetch_url_text, extract_pdf_text, extract_txt_text, chunk_text
 from .embeddings import embed_texts
-from .vectorstore import add_texts, query
+from .vectorstore import add_texts, query, list_collections_summary, delete_by_source, delete_all
 from .mmr import mmr_select
 from .sealion import summarize_with_sealion, generate_with_sealion
 
@@ -195,6 +195,40 @@ async def generate(body: GenerateBody):
     "sources": unique_sources,  # <-- NEW
     "matches": [{"id": ids[i], "meta": metas[i]} for i in range(len(docs))],
 }
+
+# --- Admin / debug ---
+
+@app.get("/api/debug/collections")
+async def api_debug_collections():
+    """List Chroma collections with approximate counts."""
+    return {"collections": list_collections_summary()}
+
+class DeleteBody(BaseModel):
+    collection: str = "knowledge"
+    source: str | None = None
+    all: bool | None = None
+
+@app.post("/api/documents/delete")
+async def api_delete_documents(body: DeleteBody):
+    """Delete by exact metadata 'source' (or doc_title), or wipe a whole collection."""
+    try:
+        if body.all:
+            result = delete_all(body.collection)
+            return {"ok": True, "deleted": result["deleted"], "collection": body.collection}
+        if body.source:
+            result = delete_by_source(body.collection, body.source)
+            return {
+                "ok": True, "deleted": result["deleted"],
+                "collection": body.collection, "source": body.source
+            }
+        raise HTTPException(status_code=400, detail="Provide 'source' or set 'all': true")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to delete: {e}")
+
+
+
 
 # Debug: show routes
 from fastapi.routing import APIRoute

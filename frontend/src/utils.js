@@ -35,3 +35,12 @@ export async function postForm(path, formData) {
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   return res.json()
 }
+
+export async function getJSON(url) {
+  const res = await fetch(url, { method: 'GET' });
+  if (!res.ok) {
+    const txt = await res.text().catch(() => '');
+    throw new Error(`HTTP ${res.status} on ${url}: ${txt}`);
+  }
+  return res.json();
+}
