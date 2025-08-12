@@ -1,0 +1,32 @@
+name: keep-alive
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'   # every 10 minutes (UTC)
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    concurrency:
+      group: keep-alive
+      cancel-in-progress: true
+    steps:
+      - name: Ping Render health endpoint
+        env:
+          PING_URL: ${{ secrets.KEEP_ALIVE_URL }}
+        run: |
+          if [ -z "$PING_URL" ]; then
+            echo "Set KEEP_ALIVE_URL secret to your Render /healthz URL" >&2
+            exit 1
+          fi
+          echo "Pinging $PING_URL at $(date -u)"
+          for i in {1..3}; do
+            code=$(curl -s -o /dev/null -w "%{http_code}" "$PING_URL" || true)
+            echo "Attempt $i → HTTP $code"
+            if [ "$code" -ge 200 ] && [ "$code" -lt 500 ]; then
+              exit 0
+            fi
+            sleep 5
+          done
+          exit 1

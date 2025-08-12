@@ -9,6 +9,7 @@ from fastapi.responses import FileResponse
 from fastapi.middleware.gzip import GZipMiddleware
 from pydantic import BaseModel
 from typing import Optional
+from collections import OrderedDict
 
 from .settings import settings  # (unused but fine)
 from .ingest import fetch_url_text, extract_pdf_text, extract_txt_text, chunk_text
@@ -73,12 +74,12 @@ async def summarize(body: SummarizeBody):
 
     # Auto-ingest both the selected source chunks and the final summary
     try:
-        metas = [{"source": title, "kind": "source_chunk"} for _ in selected]
+        metas = [{"source": title, "doc_title": title, "kind": "source_chunk"} for _ in selected]
         add_texts("knowledge", selected, metas, embedding_fn=embed_texts)
         add_texts(
             "knowledge",
             [summary],
-            [{"source": title, "kind": "summary"}],
+            [{"source": title, "doc_title": title, "kind": "summary"}],
             embedding_fn=embed_texts,
         )
     except Exception:
@@ -123,12 +124,12 @@ async def upload(
 
     # Auto-ingest
     try:
-        metas = [{"source": file.filename, "kind": "source_chunk"} for _ in selected]
+        metas = [{"source": title, "doc_title": title, "kind": "source_chunk"} for _ in selected]
         add_texts("knowledge", selected, metas, embedding_fn=embed_texts)
         add_texts(
             "knowledge",
             [summary],
-            [{"source": file.filename, "kind": "summary"}],
+            [{"source": title, "doc_title": title, "kind": "summary"}],
             embedding_fn=embed_texts,
         )
     except Exception:
@@ -175,14 +176,25 @@ async def generate(body: GenerateBody):
     )
     user = f"Question:\n{body.message}\n\nContext:\n{context}\n\nWrite a structured answer."
 
+    unique_sources = []
+    seen = set()
+    for m in metas:
+        src = (m or {}).get("doc_title") or (m or {}).get("source") or "unknown"
+        if src not in seen:
+            seen.add(src)
+            unique_sources.append(src)
+
+    # Keep your system+user messages as-is
     answer = generate_with_sealion(
         messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
         temperature=body.temperature,
     )
+
     return {
-        "answer": answer,
-        "matches": [{"id": ids[i], "meta": metas[i]} for i in range(len(docs))],
-    }
+    "answer": answer,
+    "sources": unique_sources,  # <-- NEW
+    "matches": [{"id": ids[i], "meta": metas[i]} for i in range(len(docs))],
+}
 
 # Debug: show routes
 from fastapi.routing import APIRoute

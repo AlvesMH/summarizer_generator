@@ -9,6 +9,7 @@ export default function Generator() {
   const [temperature, setTemperature] = useState(0.6)
   const [loading, setLoading] = useState(false)
   const [answer, setAnswer] = useState('')
+  const [sources, setSources] = useState([])
   const [error, setError] = useState('')
 
   // Persist System Prompt across the session (and beyond)
@@ -23,7 +24,7 @@ export default function Generator() {
   }, [systemPrompt])
 
   async function run() {
-    setError(''); setLoading(true); setAnswer('')
+    setError(''); setLoading(true); setAnswer(''); setSources([])
     try {
       const data = await postJSON('/api/generate', {
         message,
@@ -32,6 +33,7 @@ export default function Generator() {
       })
       if (data.error) throw new Error(data.error)
       setAnswer(data.answer)
+      setSources(data.sources || []) // <-- NEW
     } catch (e) {
       setError(e.message || 'Failed')
     } finally {
@@ -91,9 +93,17 @@ export default function Generator() {
         <article className="mt-8 bg-[var(--card)] rounded-2xl p-6 shadow-xl">
           <h2 className="text-xl font-semibold">Answer</h2>
           <div className="text-slate-300 mt-2 whitespace-pre-wrap leading-relaxed">{answer}</div>
+
+          {sources?.length > 0 && (
+            <div className="mt-6 border-t border-slate-700 pt-4 text-sm text-slate-400">
+              <div className="font-semibold">Sources referenced</div>
+              <ul className="list-disc ml-5 mt-2">
+                {sources.map((s, i) => <li key={i}>{s}</li>)}
+              </ul>
+            </div>
+          )}
         </article>
       )}
-
       <footer className="py-10 text-sm text-slate-400">
         <p>Backed by ChromaDB retrieval + Sea Lion completions.</p>
       </footer>
