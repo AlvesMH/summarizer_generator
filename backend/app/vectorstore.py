@@ -31,9 +31,9 @@ def query(collection: str, queries: Sequence[str], n_results: int = 5, embedding
     if embedding_fn:
         q_emb = embedding_fn(list(queries))
         return col.query(query_embeddings=q_emb, n_results=n_results,
-                         include=["documents", "metadatas", "distances", "embeddings", "ids"])
+                         include=["documents", "metadatas", "distances", "embeddings"])
     return col.query(query_texts=list(queries), n_results=n_results,
-                     include=["documents", "metadatas", "distances", "embeddings", "ids"])
+                     include=["documents", "metadatas", "distances", "embeddings"])
 
 # --- Admin helpers ---
 
