@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import traceback
 from pathlib import Path
+import requests
 from fastapi import FastAPI, UploadFile, File, Form, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -71,7 +72,18 @@ async def summarize(body: SummarizeBody):
     title = body.url or "Uploaded Text"
     text = body.text or ""
     if body.url:
-        text, title = fetch_url_text(body.url)
+        try:
+            text, title = fetch_url_text(body.url)
+        except requests.exceptions.RequestException as e:
+            # Treat as a client-visible fetch problem rather than a generic 500.
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"Failed to fetch the URL for summarization. "
+                    f"If the site blocks automated requests, try uploading a PDF or pasting the text instead. "
+                    f"Error: {str(e)}"
+                ),
+            )
 
     chunks = chunk_text(text)
     if not chunks:
