@@ -1,15 +1,19 @@
 from __future__ import annotations
 
 import os
+import traceback
 from pathlib import Path
 from fastapi import FastAPI, UploadFile, File, Form, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.exception_handlers import http_exception_handler
 from fastapi.middleware.gzip import GZipMiddleware
 from pydantic import BaseModel
 from typing import Optional
 from collections import OrderedDict
+
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from .settings import settings  # (unused but fine)
 from .ingest import fetch_url_text, extract_pdf_text, extract_txt_text, chunk_text
@@ -28,6 +32,23 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception(request: Request, exc: Exception):
+    """Return JSON for API errors instead of an empty 500, and log a traceback.
+
+    This makes frontend errors actionable when an upstream API call (embeddings / LLM)
+    fails or when configuration is missing.
+    """
+    print(f"[ERR] Unhandled exception on {request.method} {request.url.path}: {exc!r}")
+    traceback.print_exc()
+    if request.url.path.startswith("/api"):
+        return JSONResponse(
+            status_code=500,
+            content={"error": "Internal server error", "detail": str(exc)},
+        )
+    return JSONResponse(status_code=500, content={"error": "Internal server error"})
 
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
@@ -264,10 +285,14 @@ class SmartStaticFiles(StaticFiles):
 if FRONTEND_DIST.exists():
     app.mount("/", SmartStaticFiles(directory=FRONTEND_DIST, html=True), name="static")
 
-    @app.exception_handler(404)
-    async def spa_fallback(request, exc):
-        if not request.url.path.startswith("/api"):
+    @app.exception_handler(StarletteHTTPException)
+    async def spa_and_api_http_errors(request: Request, exc: StarletteHTTPException):
+        """Serve SPA routes from index.html, while keeping API errors correct.
+
+        IMPORTANT: Do not re-raise inside an exception handler. Always return a Response.
+        """
+        if exc.status_code == 404 and not request.url.path.startswith("/api"):
             index = FRONTEND_DIST / "index.html"
             if index.exists():
                 return FileResponse(index)
-        raise exc
+        return await http_exception_handler(request, exc)

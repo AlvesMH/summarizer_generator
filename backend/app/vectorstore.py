@@ -41,11 +41,24 @@ def list_collections_summary():
     """Return [{'name': str, 'count': int}, ...] for all collections."""
     cols = []
     for c in client.list_collections():
+        # chromadb has had API differences across versions: list_collections may
+        # return Collection objects, dicts, or plain strings.
+        name = None
+        if hasattr(c, "name"):
+            name = getattr(c, "name")
+        elif isinstance(c, dict):
+            name = c.get("name")
+        elif isinstance(c, str):
+            name = c
+        else:
+            name = str(c)
+
         try:
-            cnt = c.count()
+            cnt = c.count() if hasattr(c, "count") else get_collection(name).count()
         except Exception:
             cnt = None
-        cols.append({"name": c.name, "count": cnt})
+
+        cols.append({"name": name, "count": cnt})
     return cols
 
 def delete_by_source(collection: str, source: str):
