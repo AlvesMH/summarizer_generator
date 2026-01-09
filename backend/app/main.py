@@ -99,6 +99,7 @@ async def upload(
     temperature: float = Form(0.2),
 ):
     data = await file.read()
+    title = file.filename
     if file.filename.lower().endswith(".pdf"):
         text = extract_pdf_text(data)
     else:
@@ -136,7 +137,7 @@ async def upload(
         pass
 
     return {
-        "title": file.filename,
+        "title": title,
         "summary": summary,
         "chunks_used": idxs,
         "stats": {"chunks_total": len(chunks), "chunks_used": len(idxs)},

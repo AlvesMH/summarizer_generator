@@ -1,121 +1,91 @@
-# 📚 Summarizer & Generator App
+# Summariser and Generator
 
-An AI-powered web app to **summarize documents, URLs, and uploaded text** – and to **generate structured answers** using a Retrieval-Augmented Generation (RAG) workflow.
+This application supports two closely related tasks:
 
-The backend is built with **FastAPI**, the frontend with **React + Vite**, and the vector search layer uses **ChromaDB** for in-memory embeddings (ephemeral on Render Free tier).
+1. **Summarise** a URL, PDF/TXT document, or pasted text into a readable study-ready summary.
+2. **Generate** follow-up answers that are *grounded* in what you have already summarised or uploaded.
 
----
+The intended workflow is: **Summarise first**, then use **Generator** to ask targeted questions based on the stored material.
 
-![Summarizer](img/summarizer.jpg)
+## What you can do with it
 
+### Summariser
+- Summarise a public article or report from a URL.
+- Upload an academic PDF and extract a structured summary.
+- Paste raw text (e.g., lecture notes, report sections) and produce a concise synthesis.
 
-![RAG Generator](img/generator.jpg)
+### Generator (grounded Q&A)
+- Ask follow-up questions that rely on the passages stored by the Summariser.
+- Request a specific structure (e.g., bullet points, a short memo, a comparison table).
+- Require citations in the form **[Doc i]** to keep answers anchored to retrieved evidence.
 
+## How to use (recommended workflow)
 
----
+### Step 1 — Summarise
+1. Open **Summariser**.
+2. Choose an input method:
+   - **URL** for an article or paper page
+   - **Upload** for PDF/TXT
+   - **Text** for pasted content
+3. Adjust:
+   - **Detail**: higher values produce longer, more comprehensive summaries.
+   - **Temperature**: lower values are typically more literal and factual.
+4. Click **Summarise**.
+5. Review the result and (optionally) **copy** or **download** it.
 
-## 💡How to Use the App
+The app stores extracted passages to support the next step.
 
-### Summarizer
-Paste a URL (article, blog post, academic paper link) or upload a PDF/TXT.
+### Step 2 — Ask grounded follow-up questions
+1. Open **Generator**.
+2. Enter a question related to what you uploaded/summarised.
+3. Optional controls:
+   - **Retrieval depth**: how many passages are used as evidence.
+   - **System prompt**: a persistent instruction that enforces style, structure, and citation discipline.
+4. Click **Generate**, then review:
+   - the answer
+   - the **Sources referenced** list
+   - the **Evidence matches** metadata (Advanced)
 
-- Choose:
+## Use case example: preparing for a seminar
 
-    - Detail → higher number = longer, more detailed summary
+**Scenario:** You have a 25-page journal article and need to lead a discussion.
 
-    - Temperature → lower for factual, higher for creative summaries
+1. In **Summariser**, upload the PDF.
+2. Set **Detail** to ~60–80 and **Temperature** to 0.1–0.3.
+3. In **Generator**, ask:
+   - “What is the central research question and the main findings? Use bullet points and cite as [Doc i].”
+   - “List assumptions and threats to validity. Then propose two follow-up studies.”
+   - “Summarise the method in 8–10 steps. Note data limitations and potential confounds.”
 
-- Click Summarize.
+This typically yields a usable briefing plus a set of evidence-based prompts you can bring into the seminar.
 
-- View your summary; source chunks are stored for later questions.
+## Managing stored material
 
-### Generator (RAG mode)
-Switch to the Generator tab.
+The Summariser stores extracted passages to enable grounded follow-up questions. If you want to remove stored material:
 
-- Ask a question related to something you just summarized/uploaded.
+- Open **Summariser → Advanced → Knowledge base management**
+- Use **Clear knowledge base** (wipe) or **Purge by source** (exact match)
 
-- The app searches your stored chunks for relevant context.
+## Screenshots
 
-- Answer includes citations like [Doc 1] that map to chunks in memory.
+![Summariser](img/summarizer.jpg)
 
----
+![Generator](img/generator.jpg)
 
-## ✨ Features
+## Running locally (minimal)
 
-- **Summarizer**
-  - Paste a URL, upload a PDF/TXT, or enter raw text
-  - Choose level of detail and temperature
-  - Extracts and embeds content, then produces a concise summary
-  - Auto-stores both source chunks and summaries in a temporary vectorstore
-
-- **RAG Generator**
-  - Ask follow-up questions that reference stored knowledge
-  - Answers are grounded in matching documents (cited as `[Doc i]`)
-  - If no relevant context is found, it tells you
-
-- **User Interface**
-  - Dark mode with neon green accent
-  - Mobile-friendly
-  - File upload & text input
-  - Two tabs: Summarizer and Generator
-
----
-
-## 🖥 Local Development
-
-### 1. Clone & install
-```bash
-git clone https://github.com/<your-repo>.git
-cd summarizer-generator
-```
-
-### 2. Backend setup
+### Backend
 ```bash
 cd backend
-python -m venv .venv
-source .venv/bin/activate  # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
-```
-
-### 3. Frontend setup
-```bash
-cd ../frontend
-npm install
-```
-
-### 4. Environment variables
-Create a .env file in backend/ with:
-```bash 
-SEA_LION_API_KEY=your-sealion-api-key
-HUGGINGFACE_API_TOKEN=your-hf-token
-```
-
-### 5. Run in dev mode
-Backend:
-```bash
-cd backend
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-Frontend:
+### Frontend
 ```bash
 cd frontend
+npm install
 npm run dev
 ```
 
-Frontend runs at http://localhost:5173 and proxies API calls to the backend.
-
-
-### 🔧 Tech Stack
-Frontend: React 18, Vite, TailwindCSS
-
-Backend: FastAPI, Uvicorn
-
-Vector Search: ChromaDB
-
-LLMs: Sea Lion models via API, HuggingFace embeddings
-
-Deployment: Render (Free Tier)
-
-### 📜 License
-MIT License — see LICENSE file.
+If you deploy on a hosted platform, the frontend is designed to call the backend on the same origin under `/api/*`.
